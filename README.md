@@ -46,87 +46,27 @@ I used below query to load the data and add mentions lists (uncomment "LIMIT 100
 
 ## Ex3
 
+It is very unclear to me what is requested from the question. However I've made a query that creates relations between all tweets containing a property with the calculated distance.
+
+    MATCH (t1:Tweet), (t2:Tweet)
+    WHERE NOT (t2)-[:DISTANCE]->(t1) AND NOT (t1) = (t2)
+    MERGE 
+    (t1)-
+    [d:DISTANCE 
+        {
+            distance: toInteger(
+                round(distance
+                (
+                    point({ longitude: t1.longitude, latitude: t1.latitude }),
+                    point({ longitude: t2.longitude, latitude: t2.latitude })
+                )) / 1000
+            )
+        }
+    ]
+    ->(t2)
+    RETURN d.distance, t1.username, t1.nickname, t2.username, t2.nickname;
 
 
-match (:Tweet)-[d:DISTANCE]->(:Tweet) return d.distance;
-
-match(t:Tweet) return t.mentions[0];
-
-match(t:Tweeters) return t;
-
-
-MATCH (n)
-DETACH DELETE n;
-
-
-LOAD CSV WITH HEADERS FROM "file:///some2016UKgeotweets.csv" AS row 
-    FIELDTERMINATOR ";"
-WITH row LIMIT 10
-WHERE NOT row.Latitude = "" AND NOT row.Longitude = ""
-MERGE (t:Tweet
-    {
-        username:row["User Name"],
-        nickname: row.Nickname,
-        place: row["Place (as appears on Bio)"],
-        latitude: toFloat(row.Latitude),
-        longitude: toFloat(row.Longitude),
-        mentions: [
-            m in filter(m in split(row["Tweet content"]," ") 
-            where m starts with "@" and size(m) > 1) | right(m,size(m)-1)
-        ],
-        content: row["Tweet content"]
-    }
-);
-     
-MATCH (t1:Tweet), (t2:Tweet)
-WHERE NOT (t2)-[:DISTANCE]->(t1) AND NOT (t1) = (t2)
-MERGE 
-(t1)-
-[d:DISTANCE 
-    {
-        distance: toInteger(
-            round(distance
-            (
-                point({ longitude: t1.longitude, latitude: t1.latitude }),
-                point({ longitude: t2.longitude, latitude: t2.latitude })
-            )) / 1000
-        )
-    }
-]
-->(t2)
-RETURN d.distance;
-
-
-
-SET t1.distance = d.distance
-WITH t1
-ORDER BY t1.distance
-LIMIT 5
-return t1.distance, t1.content;
-
-
-
-
-RETURN ;
-
-
-
-
-
-
-MATCH(t:Tweet) 
-WITH t
-FOREACH (
-    m in t.mentions | 
-    MERGE (tu:Tweeters { username:t.username} )
-    CREATE (tu)-[:MENTIONS]->(t)
-);
-
-
-MATCH(t:Tweet) 
-WITH t
-MERGE (tu:Tweeters { username:t.username} )
-CREATE (tu)-[:TWEETED]->(t);
 
 
 
