@@ -48,7 +48,7 @@ I used below query to load the data and add mentions lists (uncomment "LIMIT 100
 
 
 
-
+match (:Tweet)-[d:DISTANCE]->(:Tweet) return d.distance;
 
 match(t:Tweet) return t.mentions[0];
 
@@ -61,7 +61,7 @@ DETACH DELETE n;
 
 LOAD CSV WITH HEADERS FROM "file:///some2016UKgeotweets.csv" AS row 
     FIELDTERMINATOR ";"
-WITH row LIMIT 1000
+WITH row LIMIT 10
 WHERE NOT row.Latitude = "" AND NOT row.Longitude = ""
 MERGE (t:Tweet
     {
@@ -78,6 +78,38 @@ MERGE (t:Tweet
     }
 );
      
+MATCH (t1:Tweet), (t2:Tweet)
+WHERE NOT (t2)-[:DISTANCE]->(t1) AND NOT (t1) = (t2)
+MERGE 
+(t1)-
+[d:DISTANCE 
+    {
+        distance: toInteger(
+            round(distance
+            (
+                point({ longitude: t1.longitude, latitude: t1.latitude }),
+                point({ longitude: t2.longitude, latitude: t2.latitude })
+            )) / 1000
+        )
+    }
+]
+->(t2)
+RETURN d.distance;
+
+
+
+SET t1.distance = d.distance
+WITH t1
+ORDER BY t1.distance
+LIMIT 5
+return t1.distance, t1.content;
+
+
+
+
+RETURN ;
+
+
 
 
 
